@@ -1,0 +1,6 @@
+{
+  "name": "Santé Plus",
+  "description": "Dossier médical personnel sécurisé par la blockchain, avec assistant de santé IA et recommandations d'hôpitaux basées sur la localisation.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
