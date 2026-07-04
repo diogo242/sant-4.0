@@ -177,6 +177,23 @@ export default function HospitalMap({ profile, onInitiatePayment }: HospitalMapP
 
   const timeSlots = ["08:30", "09:15", "10:00", "10:45", "11:30", "14:15", "15:00", "15:45", "16:30"];
 
+  // Coordonnées réelles approximatives des hôpitaux au Bénin
+  const hospitalCoordinates = [
+    { id: "hosp-1", lat: 6.3667, lng: 2.3833 }, // Cotonou
+    { id: "hosp-2", lat: 6.3667, lng: 2.3833 }, // Cotonou
+    { id: "hosp-3", lat: 6.4969, lng: 2.6289 }, // Porto-Novo
+    { id: "hosp-4", lat: 9.3376, lng: 2.6303 }, // Parakou
+    { id: "hosp-5", lat: 7.1833, lng: 2.0833 }, // Bohicon
+  ];
+
+  const getHospitalCoords = (hospitalId: string) => {
+    return hospitalCoordinates.find(h => h.id === hospitalId) || { lat: 6.3667, lng: 2.3833 };
+  };
+
+  const mapSrc = userLocation 
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${userLocation.lng - 0.1},${userLocation.lat - 0.1},${userLocation.lng + 0.1},${userLocation.lat + 0.1}&layer=mapnik&marker=${userLocation.lat},${userLocation.lng}`
+    : `https://www.openstreetmap.org/export/embed.html?bbox=2.2833,6.2667,2.4833,6.4667&layer=mapnik&marker=6.3667,2.3833`;
+
   return (
     <div className="max-w-7xl mx-auto space-y-4" id="google-maps-hospital-section">
       
@@ -184,15 +201,15 @@ export default function HospitalMap({ profile, onInitiatePayment }: HospitalMapP
       <div className="p-3 bg-white border border-slate-150 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
-            <Compass className="w-4 h-4 animate-spin-slow" />
+            <MapIcon className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-bold text-slate-700">Moteur Google Maps Intégré</span>
-            <span className="text-[10px] text-slate-400 block font-medium">Recherche, géolocalisation & itinéraire en temps réel</span>
+            <span className="font-bold text-slate-700">Carte Interactive - OpenStreetMap</span>
+            <span className="text-[10px] text-slate-400 block font-medium">Cartographie en temps réel du Bénin</span>
           </div>
         </div>
 
-        {/* Mobile View Switcher - Google Maps style layout */}
+        {/* Mobile View Switcher */}
         <div className="flex lg:hidden bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button
             onClick={() => setMobileView("map")}
@@ -213,7 +230,7 @@ export default function HospitalMap({ profile, onInitiatePayment }: HospitalMapP
         </div>
 
         <div className="flex items-center gap-2.5 font-mono text-[10px] bg-slate-50 p-1 rounded-lg border border-slate-100">
-          <span className="font-bold text-slate-500 uppercase">GPS :</span>
+          <span className="font-bold text-slate-500 uppercase">Position :</span>
           <span className="text-emerald-600 font-bold">{locationName}</span>
         </div>
       </div>
