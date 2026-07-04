@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Appointment, Block } from "../types";
-import { Shield, CreditCard, Landmark, Check, Loader2, ArrowRight, ShieldCheck, Printer, Calendar, Clock } from "lucide-react";
+import { Shield, CreditCard, Landmark, Check, Loader2, ArrowRight, ShieldCheck, Printer, Calendar, Clock, Zap, Copy, QrCode, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { calculateSHA256 } from "../utils/blockchain";
+import { generateMockPaymentIntent, detectWebLN, sendViaWebLN, formatSats } from "../utils/bitcoinPayment";
 
 interface PaymentModalProps {
   appointment: Omit<Appointment, "id" | "status" | "isPaid"> | null;
@@ -20,6 +21,13 @@ export default function PaymentModal({ appointment, onClose, onPaymentSuccess }:
   const [paymentStep, setPaymentStep] = useState<"review" | "processing" | "receipt">("review");
   const [transactionId, setTransactionId] = useState("");
   const [receiptHash, setReceiptHash] = useState("");
+
+  // Bitcoin flow state
+  const [btcStatus, setBtcStatus] = useState<"select" | "creating" | "awaiting" | "success" | "error">("select");
+  const [btcIntent, setBtcIntent] = useState<any>(null);
+  const [btcError, setBtcError] = useState("");
+  const [btcCopied, setBtcCopied] = useState(false);
+  const [btcMethod, setBtcMethod] = useState<"lightning" | "onchain">("lightning");
 
   if (!appointment) return null;
 
@@ -54,6 +62,23 @@ export default function PaymentModal({ appointment, onClose, onPaymentSuccess }:
     };
 
     onPaymentSuccess(finalAppointment);
+  };
+
+  const completeBtcPayment = (preimage?: string) => {
+    setBtcStatus("success");
+    const final: Appointment = {
+      id: "apt-" + Math.random().toString(36).substr(2, 9),
+      hospitalId: appointment.hospitalId,
+      hospitalName: appointment.hospitalName,
+      specialty: appointment.specialty,
+      date: appointment.date,
+      time: appointment.time,
+      fees: appointment.fees,
+      isPaid: true,
+      status: "Confirmed",
+      patientName: appointment.patientName,
+    };
+    setTimeout(() => onPaymentSuccess(final), 1500);
   };
 
   return (
@@ -168,18 +193,81 @@ export default function PaymentModal({ appointment, onClose, onPaymentSuccess }:
                   </div>
                 </div>
               ) : paymentMethod === "bitcoin" ? (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-slate-200 space-y-3 font-mono text-xs">
-                  <p className="text-[10px] text-amber-500 font-bold uppercase leading-none">Wallet Santé Plus sécurisé</p>
-                  <p className="text-slate-400 leading-relaxed text-[11px] font-sans">
-                    Le montant sera converti en Satoshis et réglé via le réseau Lightning Network. L'empreinte de la transaction sera scellée dans le bloc de santé.
-                  </p>
-                  <div className="p-2 bg-slate-950 border border-slate-800 rounded text-[10px] text-emerald-400 truncate">
-                    Adresse : 1SantePlusBCG64T7A4D1XyZ3Kq9P0
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 font-sans">
-                    <span>Taux de conversion :</span>
-                    <span>1€ = 230 Sats</span>
-                  </div>
+                <div>
+                  {btcStatus === "select" && (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-slate-50 rounded-xl space-y-2 text-xs">
+                        <div className="flex justify-between text-slate-700 font-semibold">
+                          <span>Montant</span>
+                          <span className="text-emerald-600 font-bold">{appointment.fees}EUR</span>
+                        </div>
+                        <div className="flex justify-between text-slate-500">
+                          <span>Satoshis</span>
+                          <span className="font-mono">{formatSats(Math.round(appointment.fees * 230))}</span>
+                        </div>
+                      </div>
+                      <button onClick={async () => {
+                        setBtcStatus("creating");
+                        const result = generateMockPaymentIntent({
+                          appointmentId: `apt-${Date.now()}`,
+                          hospitalName: appointment.hospitalName,
+                          specialty: appointment.specialty,
+                          amountEur: appointment.fees,
+                          method: btcMethod,
+                          patientName: appointment.patientName,
+                        });
+                        setBtcIntent({ ...result, status: "pending", createdAt: new Date().toISOString() });
+                        setBtcStatus("awaiting");
+                      }} className="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white text-sm font-bold rounded-xl cursor-pointer">
+                        Générer le paiement Bitcoin
+                      </button>
+                    </div>
+                  )}
+
+                  {btcStatus === "awaiting" && btcIntent && (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-amber-50 rounded-lg flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-700">En attente de paiement</span>
+                        <span className="text-xs font-mono text-amber-600">{formatSats(btcIntent.amountSats)}</span>
+                      </div>
+
+                      {btcIntent.bolt11 && (
+                        <div className="p-4 bg-slate-50 rounded-lg space-y-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">QR Code Lightning</p>
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(btcIntent.bolt11)}`}
+                            alt="QR Lightning"
+                            className="w-full max-w-[220px] mx-auto rounded-lg border border-slate-200 bg-white p-2"
+                          />
+                          <p className="text-[10px] text-slate-500 break-all font-mono">{btcIntent.bolt11}</p>
+                          <button onClick={() => { navigator.clipboard.writeText(btcIntent.bolt11); setBtcCopied(true); setTimeout(() => setBtcCopied(false), 2000); }} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                            {btcCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            {btcCopied ? "Copié !" : "Copier l'invoice"}
+                          </button>
+                        </div>
+                      )}
+
+                      {btcIntent.address && (
+                        <div className="p-4 bg-slate-50 rounded-lg space-y-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">QR Code On-chain</p>
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`bitcoin:${btcIntent.address}?amount=${(btcIntent.amountSats / 100_000_000).toFixed(8)}`)}`}
+                            alt="QR BTC"
+                            className="w-full max-w-[220px] mx-auto rounded-lg border border-slate-200 bg-white p-2"
+                          />
+                          <p className="text-xs font-mono break-all">{btcIntent.address}</p>
+                          <p className="text-[10px] text-slate-500">Envoyez {(btcIntent.amountSats / 100_000_000).toFixed(8)} BTC</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {btcStatus === "success" && (
+                    <div className="p-6 text-center">
+                      <Shield className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
+                      <p className="font-bold">Paiement Bitcoin Validé</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">

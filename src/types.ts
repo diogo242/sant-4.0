@@ -72,3 +72,37 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
 }
+
+export interface BitcoinPaymentIntent {
+  id: string;
+  appointmentId: string;
+  hospitalName: string;
+  specialty: string;
+  amountEur: number;
+  amountSats: number;
+  status: "pending" | "paid" | "expired" | "failed";
+  paymentMethod: "lightning" | "onchain";
+  invoice?: string;
+  paymentHash?: string;
+  bolt11?: string;
+  address?: string;
+  createdAt: string;
+  paidAt?: string;
+}
+
+export interface WalletInfo {
+  isConnected: boolean;
+  provider?: string;
+  balanceSats?: number;
+  address?: string;
+  publicKey?: string;
+}
+
+export interface LNbitsInvoice {
+  payment_hash: string;
+  payment_request: string;
+  checking_id: string;
+  lnurl_response?: string;
+  paid?: boolean;
+}
+
