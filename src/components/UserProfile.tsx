@@ -15,7 +15,7 @@ export default function PatientProfile({ profile, setProfile, onLogin, simplifie
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+229");
   const [birthDate, setBirthDate] = useState("");
   const [bloodType, setBloodType] = useState("A+");
   const [copied, setCopied] = useState(false);
@@ -32,7 +32,7 @@ export default function PatientProfile({ profile, setProfile, onLogin, simplifie
       firstName,
       lastName,
       email,
-      phone: phone || "+33 6 12 34 56 78",
+      phone: phone || "+229 97 00 00 00",
       birthDate: birthDate || "1990-01-01",
       bloodType,
       publicKey: keys.publicKey,
@@ -51,7 +51,7 @@ export default function PatientProfile({ profile, setProfile, onLogin, simplifie
       firstName: "",
       lastName: "",
       email: "",
-      phone: "+33 6 88 77 66 55",
+      phone: "+229 97 88 77 66",
       birthDate: "1985-05-12",
       bloodType: "O+",
       publicKey: keys.publicKey,
