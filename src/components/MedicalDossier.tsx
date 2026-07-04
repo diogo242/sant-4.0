@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { MedicalRecord, UserProfile } from "../types";
-import { Shield, Lock, Unlock, Upload, FileText, Plus, Check, Loader2, Award, Calendar, ChevronRight, AlertTriangle, ShieldAlert, Building, Sparkles } from "lucide-react";
+import { Shield, Lock, Unlock, Upload, FileText, Plus, Check, Loader2, Award, Calendar, ChevronRight, AlertTriangle, ShieldAlert, Building, Sparkles, X, User, Stethoscope, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { encryptData, calculateSHA256 } from "../utils/blockchain";
 
@@ -16,6 +16,17 @@ export default function MedicalDossier({ profile, records, setRecords, onMineRec
   const [accessMode, setAccessMode] = useState<"patient" | "hospital">("patient");
   const [showAccessDeniedAlert, setShowAccessDeniedAlert] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [authorizedProviders, setAuthorizedProviders] = useState<any[]>([]);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [newAuth, setNewAuth] = useState({
+    providerName: "",
+    providerSpecialty: "",
+    providerHospital: "",
+    duration: "24h",
+    canRead: true,
+    canWrite: false,
+    canAddRecords: true,
+  });
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<MedicalRecord["category"]>("Consultation");
   const [doctor, setDoctor] = useState("");
@@ -23,6 +34,20 @@ export default function MedicalDossier({ profile, records, setRecords, onMineRec
   const [details, setDetails] = useState("");
   const [files, setFiles] = useState<{ name: string; size: string; type: string }[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  
+  // Authorization system state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authorizedProviders, setAuthorizedProviders] = useState<any[]>([]);
+  const [newAuth, setNewAuth] = useState({
+    providerName: "",
+    providerSpecialty: "",
+    providerHospital: "",
+    permissions: {
+      canRead: true,
+      canAddRecords: true,
+      canViewPaymentHistory: false,
+    }
+  });
   
   // Decryption state for individual card viewing
   const [decryptedRecordId, setDecryptedRecordId] = useState<string | null>(null);
@@ -141,6 +166,36 @@ export default function MedicalDossier({ profile, records, setRecords, onMineRec
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleGrantAccess = () => {
+    const auth = {
+      ...newAuth,
+      patientId: `${profile.firstName} ${profile.lastName}`,
+      providerId: `provider-${Date.now()}`,
+      grantedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      permissions: newAuth.permissions,
+      status: "active" as const,
+      accessLog: [],
+    };
+
+    setAuthorizedProviders(prev => [...prev, auth]);
+    setShowAuthModal(false);
+    setNewAuth({
+      providerName: "",
+      providerSpecialty: "",
+      providerHospital: "",
+      permissions: {
+        canRead: true,
+        canAddRecords: true,
+        canViewPaymentHistory: false,
+      }
+    });
+  };
+
+  const revokeAccess = (providerId: string) => {
+    setAuthorizedProviders(prev => prev.filter(p => p.providerId !== providerId));
   };
 
   return (
@@ -567,6 +622,134 @@ export default function MedicalDossier({ profile, records, setRecords, onMineRec
               </motion.div>
             );
           })}
+        </div>
+      )}
+
+      {/* Authorization Section */}
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-emerald-600" />
+            <h3 className="font-bold text-slate-800">Agents de santé autorisés</h3>
+          </div>
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all cursor-pointer"
+          >
+            + Autoriser
+          </button>
+        </div>
+        {authorizedProviders.length === 0 ? (
+          <div className="p-6 text-center bg-slate-50 rounded-lg">
+            <p className="text-sm text-slate-400">Aucun agent autorisé</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {authorizedProviders.map((provider) => (
+              <div key={provider.providerId} className="p-3 bg-slate-50 rounded-lg flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-slate-800 text-sm">{provider.providerName}</p>
+                  <p className="text-xs text-slate-500">{provider.providerSpecialty}</p>
+                </div>
+                <button
+                  onClick={() => revokeAccess(provider.providerId)}
+                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Authorization Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-50 rounded-full text-emerald-600">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800">Autoriser un agent</h3>
+                <p className="text-xs text-slate-400">Donner l'accès au dossier médical</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Nom du médecin</label>
+                <input
+                  type="text"
+                  value={newAuth.providerName}
+                  onChange={(e) => setNewAuth({ ...newAuth, providerName: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  placeholder="Dr. Jean Dupont"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Spécialité</label>
+                <input
+                  type="text"
+                  value={newAuth.providerSpecialty}
+                  onChange={(e) => setNewAuth({ ...newAuth, providerSpecialty: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  placeholder="Cardiologie"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Hôpital</label>
+                <input
+                  type="text"
+                  value={newAuth.providerHospital}
+                  onChange={(e) => setNewAuth({ ...newAuth, providerHospital: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  placeholder="CHU de Cotonou"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-600">Permissions</label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newAuth.permissions.canRead}
+                    onChange={(e) => setNewAuth({ ...newAuth, permissions: { ...newAuth.permissions, canRead: e.target.checked } })}
+                    className="rounded"
+                  />
+                  <span>Lire le dossier</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newAuth.permissions.canAddRecords}
+                    onChange={(e) => setNewAuth({ ...newAuth, permissions: { ...newAuth.permissions, canAddRecords: e.target.checked } })}
+                    className="rounded"
+                  />
+                  <span>Ajouter des documents</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-100">
+              <button
+                onClick={() => setShowAuthModal(false)}
+                className="flex-1 py-2 border border-slate-200 rounded-lg text-sm font-semibold hover:bg-slate-50 cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleGrantAccess}
+                disabled={!newAuth.providerName || !newAuth.providerSpecialty}
+                className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold rounded-lg hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Autoriser
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

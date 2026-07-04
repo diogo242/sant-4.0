@@ -106,3 +106,44 @@ export interface LNbitsInvoice {
   paid?: boolean;
 }
 
+export interface AccessAuthorization {
+  id: string;
+  patientId: string;
+  providerId: string;
+  providerName: string;
+  providerSpecialty: string;
+  providerHospital: string;
+  grantedAt: string;
+  expiresAt: string;
+  permissions: {
+    canRead: boolean;
+    canWrite: boolean;
+    canAddRecords: boolean;
+    canViewPaymentHistory: boolean;
+  };
+  status: "active" | "revoked" | "expired";
+  accessLog: AccessLogEntry[];
+}
+
+export interface AccessLogEntry {
+  timestamp: string;
+  action: "view" | "update" | "add_record";
+  recordId?: string;
+  ipAddress?: string;
+}
+
+export interface MedicalRecord {
+  id: string;
+  title: string;
+  category: "Consultation" | "Ordonnance" | "Analyse" | "Imagerie" | "Vaccin";
+  doctor: string;
+  hospital: string;
+  date: string;
+  details: string;
+  attachments?: { name: string; size: string; type: string }[];
+  isEncrypted: boolean;
+  blockIndex?: number;
+  blockHash?: string;
+  accessHistory?: AccessLogEntry[];
+}
+
