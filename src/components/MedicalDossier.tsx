@@ -23,9 +23,11 @@ export default function MedicalDossier({ profile, records, setRecords, onMineRec
     providerSpecialty: "",
     providerHospital: "",
     duration: "24h",
-    canRead: true,
-    canWrite: false,
-    canAddRecords: true,
+    permissions: {
+      canRead: true,
+      canAddRecords: true,
+      canViewPaymentHistory: false,
+    }
   });
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<MedicalRecord["category"]>("Consultation");
@@ -34,20 +36,6 @@ export default function MedicalDossier({ profile, records, setRecords, onMineRec
   const [details, setDetails] = useState("");
   const [files, setFiles] = useState<{ name: string; size: string; type: string }[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  
-  // Authorization system state
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authorizedProviders, setAuthorizedProviders] = useState<any[]>([]);
-  const [newAuth, setNewAuth] = useState({
-    providerName: "",
-    providerSpecialty: "",
-    providerHospital: "",
-    permissions: {
-      canRead: true,
-      canAddRecords: true,
-      canViewPaymentHistory: false,
-    }
-  });
   
   // Decryption state for individual card viewing
   const [decryptedRecordId, setDecryptedRecordId] = useState<string | null>(null);
